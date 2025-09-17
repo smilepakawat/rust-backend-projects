@@ -38,11 +38,15 @@ fn main() {
         Ok(lot) => lot,
         Err(_) => Vec::new(),
     };
+    let incrementor = match list_of_task.is_empty() {
+        true => 1,
+        false => list_of_task.last().unwrap().id + 1
+    };
 
     match cli.command {
         Some(Commands::Add { description }) => {
             let task = Tasks {
-                id: 1,
+                id: incrementor,
                 description,
                 status: String::from("in-progress"),
             };
@@ -59,7 +63,7 @@ fn main() {
                 Ok(tasks) => tasks,
                 Err(_) => Vec::new(),
             };
-            println!("List:\n{:?}", data)
+            print_list_of_task(data)
         }
         None => {}
     }
@@ -71,8 +75,7 @@ fn write_json_to_file(path: &Path, task: Vec<Tasks>) -> Result<()> {
         .mode(0o644)
         .create(true)
         .write(true)
-        .open(path)
-        .unwrap()
+        .open(path)?
         .write(json_string.as_bytes())?;
     Ok(())
 }
@@ -82,4 +85,10 @@ fn read_json_file(path: &Path) -> Result<Vec<Tasks>> {
     let reader = BufReader::new(file);
     let data: Vec<Tasks> = serde_json::from_reader(reader)?;
     Ok(data)
+}
+
+fn print_list_of_task(lot: Vec<Tasks>) {
+    for t in lot {
+        println!("{} {} {}", t.id, t.description, t.status)
+    }
 }
