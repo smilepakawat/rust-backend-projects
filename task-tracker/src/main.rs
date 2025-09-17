@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(arg_required_else_help = true, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -18,8 +18,19 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Add { description: String },
-    Delete { id: i32 },
+    Add {
+        description: String,
+    },
+    Delete {
+        id: i32,
+    },
+    Update {
+        id: i32,
+        #[arg(short, long, required = false)]
+        description: Option<String>,
+        #[arg(short, long, required = false)]
+        status: Option<String>,
+    },
     List {},
 }
 
@@ -40,7 +51,7 @@ fn main() {
     };
     let incrementor = match list_of_task.is_empty() {
         true => 1,
-        false => list_of_task.last().unwrap().id + 1
+        false => list_of_task.last().unwrap().id + 1,
     };
 
     match cli.command {
@@ -57,6 +68,28 @@ fn main() {
         }
         Some(Commands::Delete { id }) => {
             println!("deleting task: {:}", id)
+        }
+        Some(Commands::Update {
+            id,
+            description,
+            status,
+        }) => {
+            let lot = list_of_task.len();
+            let des = description.unwrap_or("".to_string());
+            let sta = status.unwrap_or("".to_string());
+            for i in 0..lot {
+                if list_of_task[i].id == id {
+                    if des != "" {
+                        list_of_task[i].description = des.to_string();
+                    }
+                    if sta != "" {
+                        list_of_task[i].status = sta.to_string();
+                    }
+                }
+            }
+            if let Err(e) = write_json_to_file(path, list_of_task) {
+                eprintln!("Error: {}", e)
+            }
         }
         Some(Commands::List {}) => {
             let data = match read_json_file(path) {
