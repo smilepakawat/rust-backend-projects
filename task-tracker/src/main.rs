@@ -31,14 +31,40 @@ enum Commands {
         #[arg(short, long, required = false)]
         status: Option<String>,
     },
-    List {},
+    List,
+}
+
+enum Status {
+    Todo,
+    InProgress,
+    Success,
+}
+
+impl Status {
+    pub fn get_status(&self) -> String {
+        match self {
+            Self::Todo => String::from("Todo"),
+            Self::InProgress => String::from("In-progress"),
+            Self::Success => String::from("Success")
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-struct Tasks {
+struct Task {
     id: i32,
     description: String,
     status: String,
+}
+
+impl Task {
+    pub fn new(id: i32, description: String) -> Self {
+        Self {
+            id,
+            description,
+            status: Status::Todo.get_status(),
+        }
+    }
 }
 
 fn main() {
@@ -56,19 +82,14 @@ fn main() {
 
     match cli.command {
         Some(Commands::Add { description }) => {
-            let task = Tasks {
-                id: incrementor,
-                description,
-                status: String::from("todo"),
-            };
+            let task = Task::new(incrementor, description);
             list_of_task.push(task.clone());
             if let Err(e) = write_json_to_file(path, list_of_task) {
                 eprintln!("Error: {}", e)
             }
-            print_task(task)
+            print_task(task.clone())
         }
         Some(Commands::Delete { id }) => {
-            println!("deleting task: {:}", id);
             let index = list_of_task.binary_search_by(|t| t.id.cmp(&id));
             let task = list_of_task.remove(index.unwrap());
             if let Err(e) = write_json_to_file(path, list_of_task) {
@@ -107,9 +128,8 @@ fn main() {
     }
 }
 
-fn write_json_to_file(path: &Path, task: Vec<Tasks>) -> Result<()> {
+fn write_json_to_file(path: &Path, task: Vec<Task>) -> Result<()> {
     let json_string = serde_json::to_string_pretty(&task)?;
-    println!("test {}", json_string);
     OpenOptions::new()
         .mode(0o644)
         .create(true)
@@ -120,19 +140,19 @@ fn write_json_to_file(path: &Path, task: Vec<Tasks>) -> Result<()> {
     Ok(())
 }
 
-fn read_json_file(path: &Path) -> Result<Vec<Tasks>> {
+fn read_json_file(path: &Path) -> Result<Vec<Task>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let data: Vec<Tasks> = serde_json::from_reader(reader)?;
+    let data: Vec<Task> = serde_json::from_reader(reader)?;
     Ok(data)
 }
 
-fn print_list_of_task(lot: Vec<Tasks>) {
+fn print_list_of_task(lot: Vec<Task>) {
     for t in lot {
         print_task(t)
     }
 }
 
-fn print_task(t: Tasks) {
+fn print_task(t: Task) {
     println!("{} {} {}", t.id, t.description, t.status)
 }
