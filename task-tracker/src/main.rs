@@ -16,7 +16,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Clone, Debug)]
 enum Commands {
     Add {
         description: String,
@@ -34,6 +34,7 @@ enum Commands {
     List,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 enum Status {
     Todo,
     InProgress,
@@ -41,11 +42,11 @@ enum Status {
 }
 
 impl Status {
-    pub fn get_status(&self) -> String {
+    fn get(&self) -> String {
         match self {
             Self::Todo => String::from("Todo"),
             Self::InProgress => String::from("In-progress"),
-            Self::Success => String::from("Success")
+            Self::Success => String::from("Success"),
         }
     }
 }
@@ -58,11 +59,27 @@ struct Task {
 }
 
 impl Task {
-    pub fn new(id: i32, description: String) -> Self {
+    fn new(id: i32, description: String) -> Self {
         Self {
             id,
             description,
-            status: Status::Todo.get_status(),
+            status: Status::Todo.get(),
+        }
+    }
+
+    fn update(&mut self, description: String, status: String) -> Self {
+        Self {
+            id: self.id,
+            description: if description.is_empty() {
+                self.description.clone()
+            } else {
+                description
+            },
+            status: if status.is_empty() {
+                self.status.clone()
+            } else {
+                status
+            },
         }
     }
 }
@@ -90,8 +107,8 @@ fn main() {
             print_task(task.clone())
         }
         Some(Commands::Delete { id }) => {
-            let index = list_of_task.binary_search_by(|t| t.id.cmp(&id));
-            let task = list_of_task.remove(index.unwrap());
+            let index = list_of_task.binary_search_by(|t| t.id.cmp(&id)).unwrap();
+            let task = list_of_task.remove(index);
             if let Err(e) = write_json_to_file(path, list_of_task) {
                 eprintln!("Error: {}", e)
             }
@@ -102,28 +119,17 @@ fn main() {
             description,
             status,
         }) => {
-            let des = description.unwrap_or("".to_string());
-            let sta = status.unwrap_or("".to_string());
+            let des = description.unwrap_or_default();
+            let sta = status.unwrap_or_default();
             let index = list_of_task.binary_search_by(|t| t.id.cmp(&id)).unwrap();
-            if des != "" {
-                list_of_task[index].description = des.to_string();
-            }
-            if sta != "" {
-                list_of_task[index].status = sta.to_string();
-            }
+            list_of_task[index] = list_of_task[index].update(des, sta);
             let task = list_of_task[index].clone();
             if let Err(e) = write_json_to_file(path, list_of_task) {
                 eprintln!("Error: {}", e)
             }
             print_task(task);
         }
-        Some(Commands::List {}) => {
-            let data = match read_json_file(path) {
-                Ok(tasks) => tasks,
-                Err(_) => Vec::new(),
-            };
-            print_list_of_task(data)
-        }
+        Some(Commands::List {}) => print_list_of_task(list_of_task),
         None => {}
     }
 }
