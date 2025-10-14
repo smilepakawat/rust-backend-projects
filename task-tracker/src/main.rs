@@ -22,10 +22,10 @@ enum Commands {
         description: String,
     },
     Delete {
-        id: i32,
+        id: u32,
     },
     Update {
-        id: i32,
+        id: u32,
         #[arg(short, long, required = false)]
         description: Option<String>,
         #[arg(short, long, required = false)]
@@ -53,13 +53,13 @@ impl Status {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Task {
-    id: i32,
+    id: u32,
     description: String,
     status: String,
 }
 
 impl Task {
-    fn new(id: i32, description: String) -> Self {
+    fn new(id: u32, description: String) -> Self {
         Self {
             id,
             description,
