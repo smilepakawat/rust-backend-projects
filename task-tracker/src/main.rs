@@ -49,6 +49,15 @@ impl Status {
             Self::Success => String::from("Success"),
         }
     }
+    
+    fn verify(status: &String) -> bool {
+        match status.as_str() {
+            "Todo" => true,
+            "In-progress" => true,
+            "Success" => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -67,18 +76,18 @@ impl Task {
         }
     }
 
-    fn update(&mut self, description: String, status: String) -> Self {
+    fn update(&mut self, description: &String, status: &String) -> Self {
         Self {
             id: self.id,
             description: if description.is_empty() {
                 self.description.clone()
             } else {
-                description
+                description.to_owned()
             },
             status: if status.is_empty() {
                 self.status.clone()
             } else {
-                status
+                status.to_owned()
             },
         }
     }
@@ -101,41 +110,44 @@ fn main() {
         Some(Commands::Add { description }) => {
             let task = Task::new(incrementor, description);
             list_of_task.push(task.clone());
-            if let Err(e) = write_json_to_file(path, list_of_task) {
+            if let Err(e) = write_json_to_file(path, &list_of_task) {
                 eprintln!("Error: {}", e)
             }
-            print_task(task.clone())
+            print_task(&task)
         }
         Some(Commands::Delete { id }) => {
-            let index = list_of_task.binary_search_by(|t| t.id.cmp(&id)).unwrap();
+            let index = get_index(&list_of_task, id);
             let task = list_of_task.remove(index);
-            if let Err(e) = write_json_to_file(path, list_of_task) {
+            if let Err(e) = write_json_to_file(path, &list_of_task) {
                 eprintln!("Error: {}", e)
             }
-            print_task(task)
+            print_task(&task)
         }
         Some(Commands::Update {
             id,
             description,
             status,
         }) => {
-            let des = description.unwrap_or_default();
-            let sta = status.unwrap_or_default();
-            let index = list_of_task.binary_search_by(|t| t.id.cmp(&id)).unwrap();
-            list_of_task[index] = list_of_task[index].update(des, sta);
-            let task = list_of_task[index].clone();
-            if let Err(e) = write_json_to_file(path, list_of_task) {
+            let unwrap_status = status.clone().unwrap_or_default();
+            let unwrap_description = description.clone().unwrap_or_default();
+            if unwrap_status != "" && !Status::verify(&unwrap_status) {
+                eprintln!("Error: Status must be Todo, In-progress or Success");
+                return;
+            }
+            let index = get_index(&list_of_task, id);
+            list_of_task[index] = list_of_task[index].update(&unwrap_description, &unwrap_status);
+            if let Err(e) = write_json_to_file(path, &list_of_task) {
                 eprintln!("Error: {}", e)
             }
-            print_task(task);
+            print_task(&list_of_task[index]);
         }
-        Some(Commands::List {}) => print_list_of_task(list_of_task),
+        Some(Commands::List {}) => print_list_of_task(&list_of_task),
         None => {}
     }
 }
 
-fn write_json_to_file(path: &Path, task: Vec<Task>) -> Result<()> {
-    let json_string = serde_json::to_string_pretty(&task)?;
+fn write_json_to_file(path: &Path, task: &Vec<Task>) -> Result<()> {
+    let json_string = serde_json::to_string_pretty(task)?;
     OpenOptions::new()
         .mode(0o644)
         .create(true)
@@ -153,12 +165,16 @@ fn read_json_file(path: &Path) -> Result<Vec<Task>> {
     Ok(data)
 }
 
-fn print_list_of_task(lot: Vec<Task>) {
-    for t in lot {
-        print_task(t)
+fn print_list_of_task(list_of_task: &Vec<Task>) {
+    for task in list_of_task {
+        print_task(&task)
     }
 }
 
-fn print_task(t: Task) {
-    println!("{} {} {}", t.id, t.description, t.status)
+fn print_task(task: &Task) {
+    println!("{} {} {}", task.id, task.description, task.status)
+}
+
+fn get_index(list_of_task: &Vec<Task>, id: u32) -> usize {
+    list_of_task.binary_search_by(|t| t.id.cmp(&id)).unwrap()
 }
