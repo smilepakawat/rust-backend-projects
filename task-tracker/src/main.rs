@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -16,7 +16,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     Add {
         description: String,
@@ -31,14 +31,26 @@ enum Commands {
         #[arg(short, long, required = false)]
         status: Option<String>,
     },
-    List,
+    List(ListArgs),
+}
+
+#[derive(Args, Debug)]
+struct ListArgs {
+    #[arg(short, long, required = false)]
+    all: bool,
+    #[arg(short, long, required = false)]
+    todo: bool,
+    #[arg(short, long, required = false)]
+    done: bool,
+    #[arg(short, long, required = false)]
+    in_progress: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 enum Status {
     Todo,
     InProgress,
-    Success,
+    Done,
 }
 
 impl Status {
@@ -46,16 +58,16 @@ impl Status {
         match self {
             Self::Todo => String::from("Todo"),
             Self::InProgress => String::from("In-progress"),
-            Self::Success => String::from("Success"),
+            Self::Done => String::from("Done"),
         }
     }
-    
+
     fn verify(status: &String) -> bool {
         match status.as_str() {
             "Todo" => true,
             "In-progress" => true,
-            "Success" => true,
-            _ => false
+            "Done" => true,
+            _ => false,
         }
     }
 }
@@ -131,7 +143,7 @@ fn main() {
             let unwrap_status = status.clone().unwrap_or_default();
             let unwrap_description = description.clone().unwrap_or_default();
             if unwrap_status != "" && !Status::verify(&unwrap_status) {
-                eprintln!("Error: Status must be Todo, In-progress or Success");
+                eprintln!("Error: Status must be Todo, In-progress or Done");
                 return;
             }
             let index = get_index(&list_of_task, id);
@@ -141,7 +153,18 @@ fn main() {
             }
             print_task(&list_of_task[index]);
         }
-        Some(Commands::List {}) => print_list_of_task(&list_of_task),
+        Some(Commands::List(args)) => {
+            if let Some(status) = match () {
+                _ if args.todo => Some(Status::Todo),
+                _ if args.in_progress => Some(Status::InProgress),
+                _ if args.done => Some(Status::Done),
+                _ => None,
+            } {
+                print_tasks_by_status(&list_of_task, status.get());
+            } else {
+                print_tasks(&list_of_task);
+            }
+        }
         None => {}
     }
 }
@@ -165,7 +188,15 @@ fn read_json_file(path: &Path) -> Result<Vec<Task>> {
     Ok(data)
 }
 
-fn print_list_of_task(list_of_task: &Vec<Task>) {
+fn print_tasks_by_status(list_of_task: &Vec<Task>, status: String) {
+    for task in list_of_task {
+        if task.status == status {
+            print_task(&task)
+        }
+    }
+}
+
+fn print_tasks(list_of_task: &Vec<Task>) {
     for task in list_of_task {
         print_task(&task)
     }
