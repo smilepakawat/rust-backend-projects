@@ -1,6 +1,6 @@
 # Task Tracker
 
-A simple command-line task management application written in Rust that helps you organize and track your tasks with different statuses.
+Sample solution for the [task-tracker](https://roadmap.sh/projects/task-tracker) challenge from [roadmap.sh](https://roadmap.sh/).
 
 ## Installation
 
